@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "summary-contract",
+  "summary": "Implemented a deterministic summary formatter that preserves asset identity, price, and source timestamp, and labels the quote as illustrative.",
+  "changedFiles": ["src/market-summary.mjs", "test/market-summary.test.mjs"],
+  "criteria": [
+    {
+      "criterion": "A summary includes the asset name, price, and source timestamp.",
+      "status": "pass",
+      "evidence": "test/market-summary.test.mjs verifies ACME, 42.5, and the supplied source timestamp in the returned object."
+    },
+    {
+      "criterion": "The output explicitly says the sample data is illustrative.",
+      "status": "pass",
+      "evidence": "test/market-summary.test.mjs asserts the disclosure contains 'not a live quote'."
+    }
+  ]
+}

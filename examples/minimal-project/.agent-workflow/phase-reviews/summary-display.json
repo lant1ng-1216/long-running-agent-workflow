@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "summary-display",
+  "summary": "Added a compact display label while retaining the structured price, source timestamp, and sample-data disclosure.",
+  "changedFiles": ["src/market-summary.mjs", "test/market-summary.test.mjs"],
+  "criteria": [
+    {
+      "criterion": "The display label combines the asset and price.",
+      "status": "pass",
+      "evidence": "The formatter returns displayLabel as `${asset} · ${price}`; the sample output for ACME is ACME · 42.5."
+    },
+    {
+      "criterion": "Source timestamp and illustrative-data disclosure remain available.",
+      "status": "pass",
+      "evidence": "The function returns sourceTimestamp and disclosure independently of displayLabel; the suite verifies timestamp and disclosure."
+    }
+  ]
+}

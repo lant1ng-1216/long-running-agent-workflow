@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Your Project",
+  "storage": {
+    "phaseStatePath": ".agent-workflow/phase-state.json",
+    "reviewLogPath": ".agent-workflow/reviews.jsonl",
+    "phaseReviewsDir": ".agent-workflow/phase-reviews"
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "objective": "Describe one approved, coherent phase of work.",
+      "acceptanceCriteria": [
+        "List observable acceptance criteria from the approved brief."
+      ],
+      "checks": ["typecheck", "test"],
+      "deferredItems": [],
+      "blockedItems": [],
+      "externalWriteRequested": false,
+      "highRiskActionRequested": false
+    },
+    {
+      "id": "phase-2",
+      "objective": "The next approved phase.",
+      "acceptanceCriteria": ["List its observable acceptance criteria."],
+      "checks": ["typecheck", "test"],
+      "deferredItems": [],
+      "blockedItems": [],
+      "externalWriteRequested": false,
+      "highRiskActionRequested": false
+    }
+  ]
+}

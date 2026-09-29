@@ -1,0 +1,9 @@
+{
+  "name": "workflow-minimal-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "node --check src/market-summary.mjs",
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,7 @@
+# Ariadne development workflow
+
+For implementation work within a user-approved objective, finish one coherent phase, run its relevant real checks, and use the Jev phase gate before proceeding to the next phase. The repo command is `npm run jev:gate -- --phase ID --next ID --objective "..." --check typecheck --check test:...`; see `docs/JEV_PHASE_GATE.md`. Do not manufacture passing evidence or defer a failing acceptance criterion just to advance.
+
+When the gate reports `advance`, continue automatically with the next low-risk step **inside the already approved scope**, without asking the user for routine module-by-module confirmation. When checks fail, repair and rerun. When Jev is unavailable or the gate remains paused, do not label the phase approved; report the limitation and continue only safe diagnosis or repairs. Record the gate result and unresolved items in the development log and interim technical report.
+
+Jev is a review signal, not a controller of Codex or an independent substitute for tests, visual inspection, or user judgment. Its approval never authorizes a new product direction, public release, wallet signing, broadcast, paid service, destructive operation, sensitive-data disclosure, or any action outside the user's request. Ask the user at those boundaries and for subjective design sign-off when it materially changes the result. Never put API keys, wallet data, personal data, or sensitive logs in Jev evidence.

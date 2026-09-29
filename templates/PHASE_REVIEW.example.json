@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "replace-with-current-phase-id",
+  "summary": "Replace with a concise description of the implemented phase and any limitations.",
+  "changedFiles": [],
+  "criteria": [
+    {
+      "criterion": "Copy one acceptance criterion exactly from workflow.config.json.",
+      "status": "unverified",
+      "evidence": "Replace with concrete code/test evidence; unverified items block phase advancement."
+    }
+  ]
+}

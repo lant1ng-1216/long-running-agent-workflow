@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "projectName": "Minimal Market Summary",
+  "storage": {
+    "phaseStatePath": ".agent-workflow/phase-state.json",
+    "reviewLogPath": ".agent-workflow/reviews.jsonl",
+    "phaseReviewsDir": ".agent-workflow/phase-reviews"
+  },
+  "phases": [
+    {
+      "id": "summary-contract",
+      "objective": "Create a small, deterministic market summary without losing its source timestamp.",
+      "acceptanceCriteria": [
+        "A summary includes the asset name, price, and source timestamp.",
+        "The output explicitly says the sample data is illustrative."
+      ],
+      "checks": ["typecheck", "test"],
+      "deferredItems": [],
+      "blockedItems": [],
+      "externalWriteRequested": false,
+      "highRiskActionRequested": false
+    },
+    {
+      "id": "summary-display",
+      "objective": "Add a compact display label while preserving the original summary fields.",
+      "acceptanceCriteria": [
+        "The display label combines the asset and price.",
+        "Source timestamp and illustrative-data disclosure remain available."
+      ],
+      "checks": ["typecheck", "test"],
+      "deferredItems": [],
+      "blockedItems": [],
+      "externalWriteRequested": false,
+      "highRiskActionRequested": false
+    }
+  ]
+}

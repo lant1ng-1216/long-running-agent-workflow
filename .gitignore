@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+dist/
+.env
+.agent-workflow/
+!examples/minimal-project/.agent-workflow/
+!examples/minimal-project/.agent-workflow/phase-reviews/
+!examples/minimal-project/.agent-workflow/phase-reviews/*.json
+records/
+*.log
+/launch/
