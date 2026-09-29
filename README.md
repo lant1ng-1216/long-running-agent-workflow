@@ -1,59 +1,240 @@
-# Long-Running Agent Workflow
+# 长周期 Agent 开发工作流
 
-> **Status:** private local candidate; the CLI/runtime, project templates, and synthetic example passed local checks. No license, public GitHub repository, or publication has been selected or created.
+把已经确认的项目目标，转化为有阶段、有验收证据、能返工、可安全连续推进的开发流程。
 
-A review-gated workflow for long-running AI-agent development: turn an approved brief or an in-progress repository into phased work with evidence, targeted repair, and safe automatic progression.
+这不是一个替 Agent 写代码的后台服务，而是一套供开发者和编码 Agent 共同遵循的项目工作系统：人先确认整体方向与边界；Agent 按阶段实施并自查；本地工具运行真实检查、记录证据并请求独立评审；只有当前阶段确实达标，流程才进入下一阶段。
 
-## The problem
+> 当前版本：`0.1.0`。源码仓库采用 MIT 许可证。现阶段通过 Git 仓库使用，尚未发布到 npm。工具包需要 Node.js 22 或更新版本；当前命令行检查使用 npm scripts。
 
-Large development tasks span many modules and phases. As work continues, an agent can lose the original intent, silently simplify requirements, or declare a shallow implementation complete. At the other extreme, it may stop after every module and require a person to repeat instructions even though the overall plan and acceptance criteria were already approved.
+## 为什么需要这套流程
 
-## The workflow
+长周期开发常见的麻烦不只是“任务很多”，而是随着上下文变长，项目容易逐渐偏离最初确认的目标：
+
+- Agent 忘记或弱化最初的需求，把完整要求缩成一个更容易完成的基础版本。
+- 做完一部分代码就自我判定“已完成”，但没有逐条对照产品要求，也没有足够的验证证据。
+- 一个项目横跨许多模块和阶段，每做完一个小模块都要人重新看、重新判断、重新发出“继续”的指令。
+- 一旦评审分数偏低，流程可能只停下来，却没有区分“实现真的有问题”“证据不足”还是“必须由人决定”。
+- 新项目需要从需求讨论开始；已经开发一段时间的项目，也需要能够接手并从可信的当前状态继续，而不是假装从头开始。
+
+本工作流的目标，是把完整项目意图保存下来，把每个阶段的完成条件变成可检查的约定，并在安全范围内自动处理常规返工和阶段衔接。它减少的是重复的人工作业，不是人的产品决策权。
+
+## 它是什么，不是什么
+
+它由四部分组成：
+
+1. **项目工作约定**：说明 Agent 如何理解已批准的目标、按阶段工作、逐条自查、面对失败时返工，以及何时必须暂停请求人工判断。
+2. **阶段计划与验收条件**：把一个长周期项目拆成有顺序、有依赖关系、每阶段有明确结果的工作；同时保存整体目标，避免只盯着眼前的小任务。
+3. **本地命令行工具**：读取项目配置，运行该阶段列出的 npm scripts，校验 Agent 的逐条自查记录，调用评审，并保存阶段状态和评审记录。
+4. **模板与示例**：帮助新项目从需求简报进入计划，也帮助现有项目盘点可信状态、确定剩余阶段。
+
+它**不只是一个 Skill 或一段提示词**：指令可以告诉 Agent 怎么做，但本工作流还保存项目阶段、检查配置、逐条证据和评审记录。它也**不只是 Goal/目标追踪器**：目标追踪器记录要去哪里；本工作流还定义怎样把项目交付出来、如何发现未达标、怎样返工、怎样安全地通过阶段门。
+
+它不是模型本身，不会代替 Agent 实施代码，也不是无人监管的自主开发服务。命令行工具不会在后台唤醒 Agent。阶段通过后，由当前正在工作的 Agent 按项目中的指令继续已批准的下一阶段。
+
+## 完整工作流程
 
 ```text
-Approved project brief / existing project
-  -> scope, phases, dependencies, acceptance criteria, and safety boundaries
-  -> implement one phase and run its real checks
-  -> agent self-review + independent evidence-based review
-       -> repairable finding: diagnose, repair, retest, and review again
-       -> accepted phase: record evidence and continue to the next approved phase
-       -> user-only decision or safety boundary: pause with the exact reason
-  -> integration review and final handoff
+新想法 / PRD                         已经在开发的项目
+       \                                  /
+        -> 盘点目标、现状、约束与未决问题
+        -> 人确认整体范围、阶段顺序、验收标准和安全边界
+        -> 配置阶段计划
+        -> Agent 完成当前一个完整阶段
+        -> Agent 对照每条验收标准自查并附上证据
+        -> 命令行运行本阶段配置的真实检查
+        -> 确定性基线检查 + Jev 独立评审
+             ├─ 达标且可安全继续：记录通过，自动衔接到下一阶段
+             ├─ 有具体、范围内的问题：定位问题，返工，复测，重新评审
+             ├─ 证据不足或置信度不足：补充新的证据后再评审，不原样重提
+             └─ 人工决策、授权或安全边界：暂停并说明具体原因
+        -> 项目集成检查与交接
 ```
 
-The process can start from a new PRD or join work that is already underway. It aims to remove routine phase-by-phase prompting, not to remove human judgment from product decisions, security, financial actions, destructive changes, or public release.
+### 1. 从目标或现状建立可靠计划
 
-## What this project is—and is not
+新项目可以从自然语言讨论、想法或完整 PRD 开始。Agent 先整理已确认的内容、假设和待决定问题，再提出阶段计划。对结果有实质影响的选择应由项目负责人先确认，不应让 Agent 把猜测当成需求。
 
-- A reusable project workflow, phase contract, evidence/review loop, and local tooling for coding agents.
-- Not only a Skill or prompt: those can teach an agent how to follow a process, while this project also needs durable phase state, repeatable checks, and review records.
-- Not a goal tracker: a goal describes the destination; this workflow governs how a multi-phase project is delivered and verified.
-- Not an unrestricted autonomous coding service. Agent and reviewer decisions remain bounded by approved scope and explicit safety policy.
+正在开发的项目也可以中途接入。Agent 先只读盘点代码、测试、未提交改动、已完成工作和可信交接信息，再提出“从当前状态继续”的剩余计划。不能追溯性地把以前未经本流程验收的阶段标成通过，也不能为了接入流程覆盖项目已有改动。
 
-## Current working materials
+### 2. 一次确认整体范围，不必每个小阶段都重新批准
 
-- [Open-source extraction plan](docs/OPEN_SOURCE_DEV_WORKFLOW_PLAN.md)
-- [Source extraction manifest](docs/EXTRACTION_MANIFEST.md)
-- [Extraction validation record](docs/EXTRACTION_VALIDATION.md)
-- [Quickstart](docs/QUICKSTART.md)
-- [Project intake: idea/PRD to approved phases](docs/PROJECT_INTAKE.md)
-- [Workflow model](docs/WORKFLOW_MODEL.md)
-- [Adopting an existing project](docs/ADOPT_EXISTING_PROJECT.md)
-- [Review and evidence](docs/REVIEW_AND_EVIDENCE.md)
-- [Security boundaries](docs/SECURITY.md)
-- [Configuration reference](docs/CONFIGURATION.md)
-- [Repair or stop](docs/REPAIR_OR_STOP.md)
-- [Contributing](docs/CONTRIBUTING.md)
-- [Minimal runnable example](examples/minimal-project/README.md)
+项目负责人确认目标、范围、阶段顺序、每阶段验收条件和保留给人的安全边界。这个批准覆盖计划中明确写出的常规工作；在这些边界内，阶段门通过后可以继续推进，不需要每完成一个模块都重复询问。
 
-`source-snapshot/` preserves the selected Ariadne workflow files byte-for-byte. It is an evidence/source snapshot, not a claim that the code already runs independently: some paths and check names still refer to Ariadne. No Ariadne product implementation, project records, secrets, private screenshots, or Git history are included.
+计划外的新方向、实质性范围变化、资金或钱包操作、破坏性变更、对外发布、敏感信息披露，以及其他明确保留给人的决定，仍必须停下来取得授权。一次性批准计划不等于授权这些高影响行为。
 
-The local runtime adapts project root, named checks, phase ordering, and local record paths around unchanged source decision logic. It requires the working agent to submit a structured assessment for every acceptance criterion and passes that evidence into the reviewer state; missing or failed criteria block advancement. It also records Jev's separate confidence for status, next action, and risk, while keeping the same minimum-score threshold. Jev still does not inspect source diffs or repair code. See the validation record for scope and limits.
+### 3. 每阶段同时检查“代码”和“证据”
 
-The CLI does not launch or edit a coding agent. The active coding agent performs implementation and any in-scope repair by following the project instructions; the CLI runs configured checks, requests the review decision, and records whether the approved phase may advance. The tests use synthetic projects and mocked review decisions to verify these boundaries and state transitions. They are not an end-to-end evaluation of an LLM independently changing code.
+完成阶段后，Agent 必须把 `workflow.config.json` 中的验收标准逐条复制到自查报告中，并对每条给出 `pass`、`fail` 或 `unverified` 状态和具体证据。证据应能指向实际代码、测试或可复现结果；单写“已完成”不算证据。
 
-The `launch/` folder is intentionally excluded from Git and package output. It contains local, unapproved writing notes; they are not part of the public toolkit or an approved social-media deliverable.
+工具会运行该阶段配置的 npm scripts，并校验自查报告是否遗漏、重复或引入未批准的验收条目。任一检查失败，或任一条件为 `fail` / `unverified`，都不能通过阶段门。
 
-## Release boundary
+### 4. 两道不同职责的评审门
 
-The proposed repository name is `long-running-agent-workflow`. Before any public release, the repository identity, open-source license, final README, and clean-room contents must be reviewed. No package has been published and no public repository has been created.
+- **第一道：Agent 逐条自查。** Agent 根据实现和测试对每项验收条件给出判断及证据。工具负责检查记录是否完整，并将未通过的条目挡在阶段门之外。
+- **第二道：基线规则与 Jev 独立评审。** 本地基线确定性地检查脚本结果、条件状态、阻塞项和风险标记；配置了 Jev 时，它会收到阶段目标、每条验收条件及 Agent 提供的证据，并对 `status`、`nextAction` 和 `riskLevel` 给出结构化判断及置信度。
+
+只有验收条件全部通过、配置检查成功、评审允许继续、置信度达到门槛且没有安全阻塞时，才记录 `advance`。若评审器不可用，不能把“只通过了本地基线”冒充完整批准。
+
+### 5. 失败时返工；只有真实边界才交回给人
+
+具体、可修复且仍在已批准范围内的问题，应由 Agent 继续定位、修复、重跑相关检查、更新证据，再提交评审。低置信度本身不一定代表代码错了：Agent 应先看是哪一类判断不确定、评审实际看到了什么证据，再补充或修正证据后进行有变化的复审，不能降低阈值，也不能重复提交完全相同的材料。
+
+只有遇到需要产品负责人判断、范围变化、缺少只有负责人掌握的信息、外部授权、安全边界，或连续三轮有针对性的返工仍无实质进展时，才停止并说明具体原因。工作流测试覆盖了“检查失败—返工—复测—推进”和“低置信度—补充证据—复审—推进”的模拟路径；这不等于工具会自己修改代码，实际修复由当前的编码 Agent 执行。
+
+## 各部分分别负责什么
+
+| 部分 | 负责的事情 | 不负责的事情 |
+| --- | --- | --- |
+| 编码 Agent | 理解已批准的项目计划、实施阶段、逐条自查、根据评审结果返工，并在阶段通过后继续 | 不能擅自缩小验收标准、扩大范围或越过人工授权边界 |
+| 本地命令行工具 | 检查配置和自查报告、运行已列出的 npm scripts、调用评审、记录状态与结果 | 不编写或修复代码，不启动或控制 Agent，不推送 Git、不发布产品 |
+| Jev | 对传入的阶段信息与证据给出独立结构化评审信号 | 不直接检查完整代码差异，不编辑代码，也不能替代真实测试或安全授权 |
+| 项目负责人 | 一次性确认整体目标和计划；处理实质性选择、计划外范围及授权边界 | 不需要为计划内每个常规阶段重复发出“继续”命令 |
+
+## 快速开始
+
+### 环境要求
+
+- Node.js 22 或更新版本
+- npm
+- 一个有 `package.json`、并通过 `scripts` 定义项目检查命令的目标项目
+- 需要独立评审时，使用你自己的 Jev API Key，或配置 AI Gateway Key。密钥不会随仓库提供。
+
+当前命令行运行目标项目中已存在的 npm scripts。因此，工作流理念可以用于更多类型的项目，但这一版命令行最直接适用于 Node/npm 项目；其他技术栈需要先用 npm script 包装其检查命令。
+
+### 1. 下载并构建工具包
+
+```bash
+git clone https://github.com/lant1ng-1216/long-running-agent-workflow.git
+cd long-running-agent-workflow
+npm install
+npm run build
+```
+
+目前还没有 npm 公共包可供 `npm install <包名>` 安装。这里的 `npm install` 是在克隆下来的工具包目录中安装构建和运行所需依赖。
+
+### 2. 在目标项目中初始化
+
+从目标项目根目录运行工具包的 CLI。把下面的路径替换成你电脑上实际的工具包路径：
+
+```bash
+cd /path/to/your-project
+node /absolute/path/to/long-running-agent-workflow/dist/bin/agent-workflow.js init
+```
+
+`init` 会创建 `workflow.config.json`、`.agent-workflow/` 状态目录和自查模板；如果目标项目没有 `.env.example`，也会复制一份模板。它不会覆盖已有的 `workflow.config.json`。
+
+### 3. 写入已经确认的阶段计划
+
+编辑目标项目的 `workflow.config.json`。每个阶段至少需要：
+
+- 稳定且唯一的阶段 `id`
+- 一个清楚的 `objective`
+- 可观察、可验收的 `acceptanceCriteria`
+- 目标项目 `package.json` 中真实存在的 `checks`
+- `deferredItems`、`blockedItems` 和外部写入/高风险标记
+
+示例：
+
+```json
+{
+  "schemaVersion": 1,
+  "projectName": "示例项目",
+  "phases": [
+    {
+      "id": "phase-1",
+      "objective": "完成已批准的资产列表筛选能力",
+      "acceptanceCriteria": [
+        "用户可按链和资产类别筛选列表",
+        "无匹配结果时显示明确的空状态"
+      ],
+      "checks": ["typecheck", "test"],
+      "deferredItems": [],
+      "blockedItems": [],
+      "externalWriteRequested": false,
+      "highRiskActionRequested": false
+    }
+  ]
+}
+```
+
+上例中的 `typecheck` 和 `test` 必须已存在于目标项目的 `package.json`。本工具只接受脚本名称，但运行它们时会执行该项目自行定义的脚本；运行前仍应确认这些脚本做什么。
+
+### 4. 配置评审密钥
+
+如需使用 Jev，在目标项目的 `.env.example` 旁复制出 `.env`，填入你自己的 `JEV_AGENT_KEY`；如使用支持的 AI Gateway 路径，则配置 `AI_GATEWAY_API_KEY`。确保目标项目的 `.gitignore` 忽略 `.env`，绝不要把真实密钥提交到 Git。没有可用的评审器时，阶段会暂停，不能仅凭本地检查结果推进。
+
+### 5. 把工作约定接入编码 Agent
+
+将工具包中的 `templates/AGENTS.md` 复制到目标项目根目录的 `AGENTS.md`，或将相关条款合并进现有文件。合并时保留目标项目已有的安全规则和约束，不要用通用模板覆盖项目自己的决策。
+
+人和 Agent 一起确认目标及阶段计划后，才开始实施。计划是总体约定；命令行配置是阶段门读取的可执行清单，两者应保持一致。
+
+### 6. 完成阶段、自查并运行阶段门
+
+阶段完成后，Agent 根据模板创建 `.agent-workflow/phase-reviews/<阶段 ID>.json`。其中每条验收标准都要原样对应，并写清状态和证据。然后从目标项目根目录运行：
+
+```bash
+node /absolute/path/to/long-running-agent-workflow/dist/bin/agent-workflow.js status
+node /absolute/path/to/long-running-agent-workflow/dist/bin/agent-workflow.js gate --phase phase-1
+```
+
+也可以把本地工具包作为目标项目的本地开发依赖安装，然后通过 `npx agent-workflow` 调用。
+
+查看命令输出以及 `.agent-workflow/reviews.jsonl`。通过时，状态会记录下一阶段；未通过时，检查报告中的原因，在批准范围内返工或补充证据，再运行同一阶段的门。评审记录中不要放入密钥、钱包数据、个人信息、完整私有日志或无关源码。
+
+## 会生成哪些项目内文件
+
+```text
+目标项目/
+├── workflow.config.json                         # 已批准阶段及检查项
+└── .agent-workflow/
+    ├── PHASE_REVIEW.example.json                # 自查报告模板
+    ├── phase-reviews/<阶段 ID>.json              # Agent 逐条自查与证据
+    ├── phase-state.json                          # 当前阶段与上次转换结果
+    └── reviews.jsonl                             # 每次阶段评审的追加记录
+```
+
+这些记录默认保存在目标项目本地。是否提交到目标项目的 Git 由项目负责人决定；在分享之前应检查记录中是否带有敏感信息。
+
+## 当前能力边界与验证说明
+
+- 命令行目前运行配置中列出的 npm scripts，不会自行猜测项目如何测试。
+- 命令行负责阶段门和记录，不会独立启动 Agent；自动衔接依赖当前 Agent 遵循项目中的工作约定。
+- Jev 只评审传入的结构化信息与证据；它不直接阅读完整代码差异，也不会执行修复。
+- 自动化测试通过模拟评审决定覆盖了通过、暂停、失败返工和补充证据后复审等状态流转。它们验证工具逻辑，不代表真实大模型已经在任意项目中自主完成端到端改码。
+- `source-snapshot/` 保存被选中的阶段门源文件基准；面向使用者的入口是外层 CLI、配置和模板。除非要更新来源基准并重新审计，不要直接改动该目录中的基准文件。
+- Jev 或 AI Gateway 的调用需要使用者自己配置有效密钥。评审服务不可用、证据不全或置信度不足时，不得伪装成通过。
+- 阶段门的 `advance` 只允许在负责人事先确认的范围内继续，不是部署、交易、签名、公开发布、删除数据或其他高影响行为的授权。
+
+本仓库本地验证包括类型检查、构建、工作流状态测试、最小示例测试和打包清单检查。模拟 Jev 的测试不等于一次真实 Jev 调用；本工具也尚未被证明能在所有 Agent 和所有技术栈中即插即用。
+
+## 仓库目录
+
+```text
+bin/                 命令行入口
+src/                 可移植配置、阶段门和评审适配层
+source-snapshot/     被选中的源文件基准
+templates/           项目约定、计划和评审报告模板
+examples/            最小可运行示例
+docs/                项目接入、流程、安全、配置与返工说明
+scripts/             构建收尾和自动化测试
+```
+
+## 深入阅读
+
+- [完整流程模型](docs/WORKFLOW_MODEL.md)：组成部分、责任边界和限制。
+- [从需求讨论到阶段计划](docs/PROJECT_INTAKE.md)：如何从想法或 PRD 形成批准计划。
+- [接手正在开发的项目](docs/ADOPT_EXISTING_PROJECT.md)：如何只读盘点后安全续接。
+- [快速上手](docs/QUICKSTART.md)：逐步配置和运行命令行。
+- [评审与证据](docs/REVIEW_AND_EVIDENCE.md)：如何准备逐条自查和评审材料。
+- [返工还是暂停](docs/REPAIR_OR_STOP.md)：低分、失败和需要人工决策时的处理方式。
+- [配置说明](docs/CONFIGURATION.md)：配置字段与路径规则。
+- [安全边界](docs/SECURITY.md)：密钥、证据与高影响操作的处理规则。
+- [源码基准清单](docs/EXTRACTION_MANIFEST.md)：快照文件的范围、外层工具边界和来源说明。
+- [验证记录](docs/EXTRACTION_VALIDATION.md)：实际执行的检查、评审范围与能力限制。
+- [最小示例](examples/minimal-project/README.md)：可运行的示范项目。
+- [贡献指南](docs/CONTRIBUTING.md)：修改、测试和提交变更的要求。
+
+## 许可证
+
+本项目采用 MIT 许可证，完整条款见 [LICENSE](LICENSE)。

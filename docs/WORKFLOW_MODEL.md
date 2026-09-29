@@ -22,6 +22,6 @@ The CLI records phase transitions; it is not a daemon that wakes an agent. Autom
 
 ## Fidelity and current limits
 
-The `source-snapshot/` directory is a byte-identical reference to Ariadne's current workflow files. The runtime in `src/` wraps those decision and persistence modules with project-local configuration and paths; it does not edit the snapshot.
+The `source-snapshot/` directory is a byte-identical reference to the selected workflow source files. The runtime in `src/` wraps those decision and persistence modules with project-local configuration and paths; it does not edit the snapshot.
 
 The Jev response is limited to status, next action, risk, and confidence; the runtime supplies the criterion-level evidence Jev needs to assess the phase but does not claim that Jev inspects a code diff or produces structured findings. Agent repair behavior is specified in `templates/AGENTS.md` and is bounded; low confidence never becomes an automatic pass.

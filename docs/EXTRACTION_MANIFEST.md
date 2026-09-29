@@ -1,74 +1,53 @@
-# Faithful extraction manifest
+# 工作流源码基准清单
 
-Status: the source inventory records Ariadne's workflow as it existed at extraction time. `source-snapshot/` remains byte-identical; the separate portable wrapper is documented below and does not rewrite that source.
+本清单说明仓库中保留的阶段门源文件基准，以及外层可移植工具的边界。`source-snapshot/` 中的文件用于保持所选源逻辑可追溯；一般使用者从外层的 CLI、配置和模板开始，不需要直接运行快照脚本。
 
-## Operating model in Ariadne
+## 工作流如何运转
 
-The workflow begins with a user-approved objective. That objective may be a new brief/PRD or work already in progress. The working agent establishes or follows a phased plan with acceptance criteria, dependencies, and safety boundaries. The agent implements one coherent phase and runs its real checks.
+项目负责人先确认目标、范围、阶段顺序、验收条件和安全边界。编码 Agent 每次完成一个阶段，逐条自查并附上证据，再运行该阶段真实检查。阶段门随后：
 
-The phase gate then evaluates the supplied evidence in two ways:
+1. 由本地基线检查脚本结果、自查完整性、阻塞项、延后项和风险标记。
+2. 在评审服务可用时，将阶段目标、验收条件、自查结论、证据摘要和变更文件列表交给 Jev，取得 `status`、`nextAction`、`riskLevel` 与置信度。
+3. 只有证据完整、验收项全部通过、检查成功、评审允许低风险继续且置信度达到门槛时，才写入 `advance` 并更新本地阶段状态。
 
-1. A deterministic baseline classifies failed checks, explicit blockers, deferred items, and high-risk/external actions.
-2. Jev independently returns a structured status, next action, risk level, and confidence when the configured reviewer is available.
+检查或具体实现问题可在既定范围内返工、复测后复审；证据不足时应补充新的证据，不得原样重提或降低门槛。评审器不可用、低置信度、风险过高或阶段存在阻塞时，阶段不会被标记为通过。只有真正涉及负责人判断、范围变化、外部授权、安全边界，或多轮返工无进展时才应交回给人。
 
-The gate records `advance` only when both decisions permit low-risk continuation, Jev confidence meets the configured threshold (default `0.85`), and there is no external-write or high-risk request. The runner records the review, updates the local phase state, and reports the result. Under the already approved scope, the working agent follows the project instructions and continues after `advance` without routine module-by-module user approval.
+## 基准文件清单
 
-When checks fail, the project instructions direct the agent to diagnose, repair, and rerun the relevant checks. This repair is performed by the working agent; the gate itself does not edit code. If the reviewer is unavailable, confidence is below threshold, risk is not low, or the gate pauses, the phase is not marked approved. The instructions call for safe diagnosis/repair where possible and escalation only at a real user-decision, safety, external-prerequisite, or no-progress boundary.
+下表中的“来源路径”是选取这些文件时的相对路径；目标路径位于本仓库 `source-snapshot/` 下。14 个文件已逐项进行字节一致性比对。
 
-Human approval remains required for work outside the approved scope and for material product decisions, public release, financial actions, destructive changes, sensitive-data disclosure, and other explicitly reserved boundaries. Jev is a review signal, not an execution controller.
+| 来源路径 | 快照路径 | 用途 |
+| --- | --- | --- |
+| `AGENTS.md` | `source-snapshot/AGENTS.md` | 编码 Agent 的阶段执行、复核、返工与授权边界约定 |
+| `docs/JEV_PHASE_GATE.md` | `source-snapshot/docs/JEV_PHASE_GATE.md` | 阶段门调用、验收和推进规则 |
+| `docs/JEV_SHADOW_MODE.md` | `source-snapshot/docs/JEV_SHADOW_MODE.md` | 评审边界、传入证据和影子模式说明 |
+| `src/jev/types.ts` | `source-snapshot/src/jev/types.ts` | 评审证据和决策数据类型 |
+| `src/jev/baseline.ts` | `source-snapshot/src/jev/baseline.ts` | 本地确定性基线判断 |
+| `src/jev/jev-client.ts` | `source-snapshot/src/jev/jev-client.ts` | Jev 与 AI Gateway 结构化评审调用 |
+| `src/jev/shadow-gate.ts` | `source-snapshot/src/jev/shadow-gate.ts` | 评审一致性、置信度、安全条件和阶段转换决策 |
+| `src/jev/state-collector.ts` | `source-snapshot/src/jev/state-collector.ts` | 读取并校验阶段证据 |
+| `src/jev/phase-state.ts` | `source-snapshot/src/jev/phase-state.ts` | 保存阶段转换状态 |
+| `src/jev/record.ts` | `source-snapshot/src/jev/record.ts` | 追加阶段评审记录 |
+| `src/jev/report-sync.ts` | `source-snapshot/src/jev/report-sync.ts` | 将阶段门摘要同步到项目报告的原始实现 |
+| `scripts/run-jev-gate.ts` | `source-snapshot/scripts/run-jev-gate.ts` | 运行允许的检查、评审证据、保存并输出决策 |
+| `scripts/run-jev-shadow.ts` | `source-snapshot/scripts/run-jev-shadow.ts` | 影子模式评审执行入口 |
+| `scripts/test-jev-shadow.ts` | `source-snapshot/scripts/test-jev-shadow.ts` | 基线规则和模拟评审状态转换测试 |
 
-## What the current implementation does not do
+## 外层可移植工具做了什么
 
-- The gate does not autonomously edit or repair source code; it returns evidence and a transition decision to the working agent.
-- The Jev client currently asks for structured `status`, `nextAction`, and `riskLevel` answers. It does not preserve criterion-by-criterion findings, missing-evidence lists, or repair instructions.
-- The current Jev `reasons` value is a generic message. A low confidence such as `0.300` is compared with the `0.85` threshold and results in `pause`; the current contract does not explain which specific criterion caused that uncertainty.
-- `test-jev-shadow.ts` covers baseline decisions, mocked reviewer outcomes, pause/advance behavior, and record persistence. It does not prove an end-to-end autonomous repair loop.
-- The gate command has an Ariadne-specific check allowlist and writes to Ariadne report paths. The snapshot is therefore not yet an independent, drop-in toolkit.
+`src/`、`bin/`、`templates/` 和 `examples/` 在快照之外。它们提供项目本地配置、命令行入口、逐条 Agent 自查报告、状态/记录路径和最小示例。外层工具将项目配置中的验收证据并入评审状态，并保留 Jev 对状态、下一动作和风险三类判断各自的置信度；总体置信度仍使用三者最低值，不通过降低门槛来推进阶段。
 
-These are maturity boundaries, not features to silently invent during extraction.
+命令行不会检查完整代码差异，也不会自行编辑或修复源码。具体修复由当前编码 Agent 根据评审结果实施；完成修复后，应更新自查证据、重跑检查，再进入同一阶段门。自动化测试通过模拟决策覆盖这些状态变化，但不是一次真实大模型端到端改码测试。
 
-## Separate portable wrapper
+## 不包含的材料
 
-The toolkit layer outside `source-snapshot/` adapts the existing phase order, named project checks, local record paths, and CLI startup without changing the source gate's confidence threshold or safety decisions. It also adds a structured Agent self-review for every configured acceptance criterion. Missing, failed, or unverified criterion evidence is represented as a failed baseline check; the criterion list, self-review, evidence summary, and changed-file list are passed to the unchanged reviewer logic as additional state. This responds to the explicitly requested two-gate workflow (Agent self-check plus Jev review) while preserving the extraction as provenance.
+- 产品本身的业务实现、网站、品牌资产、数据和项目开发历史。
+- 真实 `.env`、API Key、钱包材料、个人信息、私有对话、原始截图和运行记录。
+- 原产品仓库的 Git 历史或嵌套仓库。
+- 未经负责人批准的社交媒体文案。
 
-The portable adapter also retains Jev's confidence for each of the three decisions (status, next action, risk) and identifies which one set the minimum. The overall confidence remains that exact minimum, so the source threshold and advance rule are unchanged. This makes a confidence-only pause diagnosable without weakening it.
+示例项目使用合成内容。提交任何示例时，都应确认它不包含真实产品或私有数据。
 
-The reviewer still does not inspect source diffs or edit/repair code. The working Agent analyzes findings, performs safe in-scope repairs, updates the criterion evidence, reruns checks, and re-enters the gate.
+## 当前分发状态
 
-## Verbatim files copied
-
-The following files are under `source-snapshot/`. They were compared with their Ariadne originals; the selected files match byte-for-byte.
-
-| Ariadne source | Snapshot destination | Role |
-|---|---|---|
-| `AGENTS.md` | `source-snapshot/AGENTS.md` | Working-agent operating contract, repair/recheck behavior, and human authorization boundaries |
-| `docs/JEV_PHASE_GATE.md` | `source-snapshot/docs/JEV_PHASE_GATE.md` | Gate invocation, acceptance requirements, and pause/advance policy |
-| `docs/JEV_SHADOW_MODE.md` | `source-snapshot/docs/JEV_SHADOW_MODE.md` | Reviewer boundary, data passed to Jev, and shadow-mode behavior |
-| `src/jev/types.ts` | `source-snapshot/src/jev/types.ts` | Evidence and decision data types |
-| `src/jev/baseline.ts` | `source-snapshot/src/jev/baseline.ts` | Deterministic baseline classification |
-| `src/jev/jev-client.ts` | `source-snapshot/src/jev/jev-client.ts` | Jev/Gateway structured review adapter |
-| `src/jev/shadow-gate.ts` | `source-snapshot/src/jev/shadow-gate.ts` | Agreement, confidence, safety, and transition decision |
-| `src/jev/state-collector.ts` | `source-snapshot/src/jev/state-collector.ts` | Read and validate phase evidence |
-| `src/jev/phase-state.ts` | `source-snapshot/src/jev/phase-state.ts` | Persist phase transition state |
-| `src/jev/record.ts` | `source-snapshot/src/jev/record.ts` | Append review records |
-| `src/jev/report-sync.ts` | `source-snapshot/src/jev/report-sync.ts` | Append gate summaries to Ariadne interim reports (project-coupled) |
-| `scripts/run-jev-gate.ts` | `source-snapshot/scripts/run-jev-gate.ts` | Run allowlisted checks, review evidence, persist and print decision |
-| `scripts/run-jev-shadow.ts` | `source-snapshot/scripts/run-jev-shadow.ts` | Shadow-mode review runner |
-| `scripts/test-jev-shadow.ts` | `source-snapshot/scripts/test-jev-shadow.ts` | Deterministic and mocked gate contract tests |
-
-## Deliberately excluded from this snapshot
-
-- Ariadne product implementation, website, SDK/MCP business logic, brand assets, and product data.
-- `.env`, API keys, wallet material, personal data, private conversation contents, and raw screenshots.
-- `records/phase-state.json`, `records/jev-shadow.jsonl`, phase fixtures, and other live or product-specific execution records.
-- Ariadne's phase roadmap and full technical, product-experience, and developer logs. They contain project-specific history and are not generic workflow source files.
-- The full root `package.json`, because it mixes workflow commands with Ariadne product scripts and dependencies.
-- Ariadne's Git history or a nested link to its repository.
-
-The exclusion of these files does not mean their information may be paraphrased into the public project. Any generic example must be clearly synthetic and must not expose Ariadne-specific product or private data.
-
-## Packaging boundary
-
-The local wrapper is independently identified rather than spliced into the verbatim snapshot. Its package and CLI have passed local checks; the repository remains private and no public repository, license, package publication, or deployment has been selected or created. Those are separate release decisions.
-
-Social-media copy is not part of the public release tree and will be delivered in the chat for review. Local draft notes under `launch/` are ignored by Git and excluded from package output. Nothing from this side task should be added to the Ariadne mainline project.
+本仓库已在 GitHub 公开，并采用 MIT 许可证。npm 公共包尚未发布；当前使用方式是克隆仓库、安装依赖并在本地构建。发布状态不改变高影响操作需要单独授权的规则。

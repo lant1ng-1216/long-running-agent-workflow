@@ -1,51 +1,38 @@
-# Extraction validation record
+# 验证记录
 
-This record covers the faithful source snapshot and the separately identified local toolkit wrapper. It does not approve package publication or a public GitHub release.
+本文件记录当前公开版本的实现检查、评审范围和已知限制。检查结果只证明对应的检查项通过，不代表工具能保证任意项目或任意 Agent 的结果正确。
 
-## Checks
+## 本地自动化验证
 
-- Mainline `npm run test:jev-shadow`: passed. The test exercises deterministic baseline handling, mocked Jev decisions, pause/advance conditions, and record persistence; it does not claim to test automatic code repair.
-- The same shadow test, run against the staged verbatim snapshot in an isolated temporary directory: passed.
-- Byte-for-byte comparison of all 14 extracted files against Ariadne originals: passed.
-- Isolated extraction audit: passed; all 14 expected files matched, excluded project artifacts were absent, and the README/manifest described the current maturity boundary.
-- Portable runtime: `npm run typecheck`, `npm run build`, `npm run test:jev-shadow`, sample two-phase progression, fresh-project CLI `init`/`status`, and `npm pack --dry-run` passed in isolated workspaces. The dry-run contained no real `.env`; the CLI entry was executable.
-- The portable first gate blocks missing, failed, or unverified criterion assessments; passing samples record the exact criteria, Agent summary, evidence, and changed-file list for Jev.
-- The portable tests also simulate a failed check followed by repair, rerun, and advancement, plus a low-confidence pause followed by changed evidence, focused re-review, and advancement. These are mocked gate/workflow scenarios; they do not execute an actual coding model's source edits.
-- No source files, records, or reports in the Ariadne mainline were changed by this extraction task. Gate records for this side task were written only under a temporary directory.
+在发布候选上实际执行了以下命令，结果均通过：
 
-## Jev phase decisions
+| 检查 | 结果 | 覆盖内容 |
+| --- | --- | --- |
+| `npm run typecheck` | 通过 | TypeScript 类型检查 |
+| `npm run build` | 通过 | 编译 CLI 与运行时代码 |
+| `npm run test:jev-shadow` | 通过 | 基线规则、阶段状态、记录，以及模拟评审下的暂停/推进流程 |
+| 示例项目测试 | 2/2 通过 | 示例的有效输入和无效输入 |
+| `npm pack --dry-run` | 通过 | 检查本地包清单；共 62 个文件，包含许可证，不包含真实 `.env` 或本地草稿 |
+| 干净目录安装试验 | 通过 | 从本地打包产物安装后，运行 `init` 和 `status` |
 
-| Phase | Evidence | Jev | Result |
-|---|---|---|---|
-| `verbatim-source-snapshot` | `test:jev-shadow` passed | `passed`, confidence `0.99` | Advanced to `extraction-inventory-documented` |
-| `extraction-inventory-documented` | Isolated exact-copy/exclusion/documentation audit passed | `passed`, confidence `0.94` | Advanced to `final-extraction-audit` |
-| `final-extraction-audit` | Snapshot, exclusions, maturity claims, and this validation record passed deterministic audit | `passed`, confidence `0.98` | Advanced to `packaging-boundary-review` |
-| `portable-runtime-core` | Typecheck, portable runtime tests, and source shadow tests passed | `passed`, confidence `0.87` | Advanced to `agent-instructions-and-examples` |
-| `agent-instructions-and-examples` | Typecheck, runtime tests, example checks, source shadow tests, and snapshot parity passed | `passed`, confidence `0.91` | Advanced to `final-clean-room-audit` |
-| `final-clean-room-audit` (initial audit) | Three checks passed, but the evidence sent to Jev omitted criterion-level self-review and independent packaging/snapshot audit detail | `passed`, confidence `0.43` | Paused below `0.85`; no code failure was reported |
-| `final-clean-room-audit` (focused review) | Added concrete audit detail; corrected license/publication from an in-phase deferred item to a separate owner boundary | `passed_with_deferred_items`, confidence `0.84`, then `passed`, confidence `0.57` | Both paused below `0.85`; the evidence contract still did not send structured per-criterion reports |
-| `final-clean-room-audit` (portable evidence gate) | Added criterion-by-criterion self-review, sent those records to Jev, and preserved per-decision confidence | `passed`; status `0.99`, next action `0.50`, risk `0.93`; Jev selected `ask_user` | Correctly paused: the next action is the owner-controlled license/public-release decision, and confidence remains below `0.85` |
-| `side-local-technical-readiness` (first review) | Local docs/tests/package evidence passed, but future license and public-release decisions were incorrectly attached as deferred items to this technical phase | `passed_with_deferred_items`; status `0.97`, next action `0.51`, risk `0.88`; Jev selected `ask_user` | Paused below `0.85`; diagnosed a phase-boundary/evidence-classification issue, not a failed code check |
-| `side-local-technical-readiness` (focused re-review) | Separated the future owner-release decision into its own later phase, retained all technical criteria, and clarified that the next step is a private author-draft | `passed`; status `0.99`, next action `0.98`, risk `0.97`; Jev selected `continue` | Advanced to the safe in-scope author-draft phase. No release, license, or GitHub action was authorized |
+流程测试具体覆盖：缺少自查或验收项未验证时暂停；检查失败后修复并重跑；评审置信度不足时补充不同证据再复审；只有之后的阶段门通过才推进。模拟测试用来验证状态逻辑，不会启动真实编码模型替用户修改代码。
 
-The first network-restricted Jev attempt was unavailable and correctly paused. The same unchanged phase evidence was then reviewed through the authorized network path and passed; the failed attempt and successful review are retained only in the temporary gate record, not in the Ariadne project.
+## Jev 评审范围
 
-The low-confidence diagnosis exposed two concrete observability gaps in the portable wrapper: acceptance criteria were not included in reviewer state, and the minimum confidence hid which Jev decision was uncertain. The wrapper now supplies criterion evidence and stores confidence by decision dimension without changing the source snapshot or threshold. The final reviewer classified the implementation as passed/low-risk, but chose `ask_user` for the next action; that is appropriate because selecting a license or publishing a public repository is outside the approved technical phase. This is not a Jev approval to publish.
+工具包的技术准备阶段曾通过一次真实 Jev 阶段评审，综合置信度为 `0.97`。评审覆盖的是当时提供的实现、检查结果和证据，属于独立评审信号，不是代码正确性的证明，也不替代本地测试或人工授权。
 
-## Remaining boundary
+自动化命令 `npm run test:jev-shadow` 中的 Jev 决策是模拟的；本地网络不可用时，该测试会明确显示评审器不可用，并验证系统保持暂停，而不是把模拟结果冒充成真实 Jev 批准。运行者需要配置自己的有效密钥，工具包不提供或代理维护者的密钥。
 
-The local wrapper builds and runs, but the work remains in a private local folder with no Git remote. License selection, public GitHub repository creation, and any publication still need the owner's explicit decision. No package or source has been published.
+## 来源文件与隔离
 
-## Revalidation after the independent audit (2026-09-29)
+- `source-snapshot/` 中选取的 14 个阶段门源文件与其来源版本逐文件比对，14/14 字节一致。
+- 可移植配置、CLI、模板和示例位于快照目录之外；自动化测试验证两者的职责边界。
+- 公开 Git 仓库只包含这套工作流工具、模板、示例和文档；没有包含目标产品实现、私有对话截图、API 密钥、钱包数据或产品开发日志。
+- 当前 GitHub 仓库为公开仓库，并采用 MIT 许可证。npm 公共包尚未发布。
 
-- `npm run typecheck`: passed.
-- `npm run build`: passed.
-- `npm run test:jev-shadow`: passed. The portable suite passed the repair/retest and low-confidence/evidence-update simulations; the clean example passed 2/2 tests; the source shadow suite passed. The shadow test reported `jevAvailable: false` and `mockedGateDecisions: true`; the separate live gate results above are the Jev approvals for the side phase.
-- `npm pack --dry-run --json`: passed after the release-boundary edits; 61 package entries, `launch/` excluded, no real `.env`, executable CLI mode retained. `LICENSE` is absent pending the owner's license choice. An explicit `.npmignore` keeps local writing notes out of the archive.
-- Actual package tarball installed with its dependencies into a fresh isolated consumer under `/private/tmp`; installed `agent-workflow init` created its config/review template, and `status` returned `uninitialized`. This was a local install test only; nothing was published.
-- Current package metadata and lockfile now require Node 22, matching the installed `ai@7` dependency's declared engine.
-- Independent read-only subagent audit confirmed a separate local Git repository, no commits, no remote, and 14/14 byte-identical source snapshot files. It also identified and this pass corrected the Node engine mismatch and the social-draft path discrepancy. The GitHub CLI is installed but is not authenticated on this host.
+## 当前不能据此声称的事
 
-These checks validate the local toolkit and its simulated decision paths. The corrected technical-readiness phase passed its live Jev gate, but that approval does not approve a social-media text, choose a license, create a GitHub repository, or authorize public release. The overall side task remains incomplete.
-
-After that technical phase advanced, a first-person viewpoint draft was written under the ignored local `launch/` folder for author review. It is not part of Git/package output, has not passed the author's review, and is not being treated as a release deliverable.
+- 没有证明一个真实大模型能在任意代码库里完整理解需求、独立修复代码并始终遵守工作流。
+- 没有证明所有 Agent、所有项目语言和构建系统都已即插即用；当前 CLI 检查基于目标项目中的 npm scripts。
+- Jev 不会读取完整代码差异、编辑代码或执行返工；修复由遵循项目指令的编码 Agent 完成。
+- 阶段门通过不授权部署、公开发布、交易、签名、破坏性操作或超出已批准范围的工作。

@@ -6,7 +6,7 @@ This project is intended to preserve a complete, evidence-based development work
 
 - Read [the workflow model](WORKFLOW_MODEL.md), [repair-or-stop rules](REPAIR_OR_STOP.md), [security boundaries](SECURITY.md), and the exact source snapshot manifest.
 - Describe the behavior being changed and its acceptance evidence. Do not silently change the source snapshot or the meaning of a phase transition.
-- Keep Ariadne product code, private project records, credentials, private conversations, and raw screenshots out of this repository.
+- Keep source-project implementation, private project records, credentials, private conversations, and raw screenshots out of this repository.
 
 ## Verification
 
@@ -28,4 +28,4 @@ Add or update tests for both the accepted transition and the relevant failure/pa
 - Document what the CLI enforces versus what the connected coding agent is instructed to do.
 - Do not add a license, publish a package, or create a public repository on behalf of a contributor without the repository owner's explicit decision.
 
-Until the owner selects a license and approves a public release candidate, this local candidate is not an open-source release.
+The repository is publicly available under the MIT License. The npm package has not been published; the supported distribution path is currently Git clone and local build.
